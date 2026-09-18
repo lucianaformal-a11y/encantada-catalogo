@@ -2,6 +2,7 @@ services:
   - type: web
     name: encantada-catalogo
     runtime: node
+    rootDir: SISTEMA/backend
     buildCommand: npm ci
     startCommand: npm start
     plan: free

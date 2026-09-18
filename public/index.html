@@ -55,7 +55,7 @@ main{padding:26px 0 90px}.intro{display:flex;align-items:end;gap:15px;margin-bot
 </div>
 
 <script>
-const API=localStorage.getItem('encantada_api_url')||'http://localhost:3000';
+const API=(localStorage.getItem('encantada_api_url')||window.location.origin).replace(/\/$/,'');
 let products=[], cart={}, category='Todos';
 
 const money=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(v)||0);

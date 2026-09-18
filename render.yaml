@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: encantada-catalogo
+    runtime: node
+    buildCommand: npm ci
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PAYMENT_PROVIDER
+        value: mock
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CUSTOMER_JWT_SECRET
+        sync: false
+      - key: PUBLIC_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false

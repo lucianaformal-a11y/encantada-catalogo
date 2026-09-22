@@ -508,6 +508,7 @@ app.get('/api/ready', async (_req, res) => {
       error: e.message
     });
   }
+  });
 app.get('/api/catalog-test', async (_req, res) => {
   const client = new Client({
     connectionString: env.HYPERDRIVE.connectionString

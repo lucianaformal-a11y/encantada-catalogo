@@ -462,8 +462,19 @@ app.get('/api/online/catalog',async(req,res)=>{
 });
 
 app.get('/health',(_req,res)=>res.json({ok:true,service:'encantada-api'}));
-app.get('/api/ready',async(_req,res)=>{{try{await pool.query('SELECT 1');res.json({ok:true,database:true})}catch(e){console.error('DATABASE READY ERROR:',e);res.status(503).json({ok:false,database:false,error:e.message})}});
-app.get('/api/products',async(req,res)=>{const {rows}=await pool.query(`SELECT p.*,COALESCE(json_agg(json_build_object('id',v.id,'name',v.name,'attributes',v.attributes,'priceDelta',v.price_delta,'stock',v.stock,'reserved',v.reserved)) FILTER (WHERE v.id IS NOT NULL),'[]') variants FROM products p LEFT JOIN product_variants v ON v.product_id=p.id WHERE p.status='active'' AND p.status='active' GROUP BY p.id ORDER BY p.updated_at DESC`);res.json(rows)});
+app.get('/api/ready', async (_req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ ok: true, database: true });
+  } catch (e) {
+    console.error('DATABASE READY ERROR:', e);
+    res.status(503).json({
+      ok: false,
+      database: false,
+      error: e.message
+    });
+  }
+});app.get('/api/products',async(req,res)=>{const {rows}=await pool.query(`SELECT p.*,COALESCE(json_agg(json_build_object('id',v.id,'name',v.name,'attributes',v.attributes,'priceDelta',v.price_delta,'stock',v.stock,'reserved',v.reserved)) FILTER (WHERE v.id IS NOT NULL),'[]') variants FROM products p LEFT JOIN product_variants v ON v.product_id=p.id WHERE p.status='active'' AND p.status='active' GROUP BY p.id ORDER BY p.updated_at DESC`);res.json(rows)});
 const productSchema=z.object({name:z.string().min(1),sku:z.string().optional(),barcode:z.string().optional(),brand:z.string().optional(),category:z.string().optional(),subcategory:z.string().optional(),description:z.string().optional(),price:z.number().nonnegative(),promo_price:z.number().nonnegative().nullable().optional(),online_status:z.enum(['published','physical_only','hidden']).default('physical_only'),featured:z.boolean().optional(),bestseller:z.boolean().optional(),launch:z.boolean().optional(),promotion:z.boolean().optional()});
 app.post('/api/products',async(req,res)=>{const x=productSchema.parse(req.body);const {rows:[p]}=await pool.query(`INSERT INTO products(name,sku,barcode,brand,category,subcategory,description,price,promo_price,online_status,featured,bestseller,launch,promotion) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,[x.name,x.sku||null,x.barcode||null,x.brand||null,x.category||null,x.subcategory||null,x.description||null,x.price,x.promo_price??null,x.online_status,x.featured||false,x.bestseller||false,x.launch||false,x.promotion||false]);await log(pool,'product',p.id,'central-online','ok','created');res.status(201).json(p)});
 app.patch('/api/products/:id',async(req,res)=>{const x=productSchema.partial().parse(req.body);const keys=Object.keys(x);if(!keys.length)return res.status(400).json({error:'Nada para alterar'});const vals=keys.map(k=>x[k]);const set=keys.map((k,i)=>`${k}=$${i+1}`).join(', ')+`,updated_at=now()`;const {rows}=await pool.query(`UPDATE products SET ${set} WHERE id=$${keys.length+1} RETURNING *`,[...vals,req.params.id]);if(!rows[0])return res.status(404).json({error:'Produto não encontrado'});await log(pool,'product',req.params.id,'central-online','ok','updated');res.json(rows[0])});

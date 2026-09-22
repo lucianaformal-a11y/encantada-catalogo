@@ -1,4 +1,4 @@
-import express from 'express'; import cors from 'cors'; import jwt from 'jsonwebtoken'; import helmet from 'helmet'; import rateLimit from 'express-rate-limit'; import bcrypt from 'bcryptjs';
+import express from 'express'; import cors from 'cors'; import jwt from 'jsonwebtoken'; import helmet from 'helmet'; import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto'; import fs from 'node:fs'; import path from 'node:path'; import pg from 'pg'; import {z} from 'zod'; import {paymentProvider} from './payments/index.js';
 import {MercadoPagoPaymentProvider} from './payments/mercadopago.js';
 const {Pool}=pg; const app=express(); const pool=new Pool({connectionString:process.env.DATABASE_URL});
@@ -67,8 +67,6 @@ app.use((req,res,next)=>{
     res.status(400).json({error:e.message});
   });
 });
-app.use('/api/customer/auth',rateLimit({windowMs:15*60*1000,max:20,standardHeaders:true,legacyHeaders:false}));
-app.use('/api/payments',rateLimit({windowMs:60*1000,max:120,standardHeaders:true,legacyHeaders:false}));
 const SECRET=process.env.JWT_SECRET;
 if(process.env.NODE_ENV==='production'&&!SECRET) throw new Error('JWT_SECRET obrigatório em produção');
 if(process.env.NODE_ENV==='production'&&SECRET.length<32) throw new Error('JWT_SECRET deve ter pelo menos 32 caracteres em produção');

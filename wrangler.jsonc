@@ -5,9 +5,16 @@
   "compatibility_date": "2026-09-22",
   "compatibility_flags": ["nodejs_compat"],
 
-  "assets": {
+   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
-  }
+  },
+
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "69baadb7f07a4b1b8a2eb5aa7f97af82"
+    }
+  ]
 }

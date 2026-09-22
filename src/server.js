@@ -2,7 +2,7 @@ import express from 'express'; import cors from 'cors'; import jwt from 'jsonweb
 import crypto from 'node:crypto'; import fs from 'node:fs'; import path from 'node:path'; import pg from 'pg'; import {z} from 'zod'; import {paymentProvider} from './payments/index.js';
 import {MercadoPagoPaymentProvider} from './payments/mercadopago.js';
 import { env } from 'cloudflare:workers';
-const {Pool}=pg; const app=express(); const pool=new Pool({connectionString:env.HYPERDRIVE.connectionString});
+const {Pool}=pg; const app=express(); let realPool=null; const getPool=()=>realPool||(realPool=new Pool({connectionString:env.HYPERDRIVE.connectionString})); const pool={query:(...args)=>getPool().query(...args),connect:(...args)=>getPool().connect(...args)};
 
 // Pacote de fotos do PDV: usado como fallback para o catálogo quando uma foto
 // ainda não foi gravada no PostgreSQL. O PDV continua sendo a fonte principal.

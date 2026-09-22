@@ -1,3 +1,4 @@
+```
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -134,9 +135,15 @@ async function load(){
   renderCats();render();
   document.getElementById('status').textContent=`${products.length} produto(s) no catálogo • atualização automática`;
  }catch(e){
-  document.getElementById('status').textContent='Não foi possível conectar ao catálogo central. Verifique a API configurada.';
-  document.getElementById('grid').innerHTML='<div class="empty" style="grid-column:1/-1">O catálogo está aguardando conexão com a central Encantada.</div>';
- }
+  // Falha momentânea: mantém o catálogo já carregado na tela.
+  // Só mostra erro se ainda não houver produtos carregados.
+  if(!products.length){
+    document.getElementById('status').textContent='Não foi possível conectar ao catálogo central. Verifique a API configurada.';
+    document.getElementById('grid').innerHTML='<div class="empty" style="grid-column:1/-1">O catálogo está aguardando conexão com a central Encantada.</div>';
+  }else{
+    document.getElementById('status').textContent=`${products.length} produto(s) no catálogo • atualização automática`;
+  }
+ } 
 }
 function getProductCategory(p){
  const value=p?.category??p?.categoria??p?.category_name??p?.categoria_nome??p?.categoryName??'';
@@ -314,6 +321,13 @@ if(reserveBtn){
 }
 
 document.getElementById('search').addEventListener('input',render);
-load(); atualizarBotaoReserva(); setInterval(load,10000);window.addEventListener('online',load);
+let carregandoCatalogo=false;
+async function atualizarCatalogoSilencioso(){
+  if(carregandoCatalogo)return;
+  carregandoCatalogo=true;
+  try{ await load(); } finally { carregandoCatalogo=false; }
+}
+load(); atualizarBotaoReserva(); setInterval(atualizarCatalogoSilencioso,30000);window.addEventListener('online',atualizarCatalogoSilencioso);
 </script>
 </body></html>
+```

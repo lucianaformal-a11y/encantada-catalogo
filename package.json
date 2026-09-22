@@ -3,11 +3,12 @@
   "version": "1.60.0",
   "type": "module",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
-    "test": "node --test",
-    "test:contracts": "node --test backend/test/*.test.js"
-  },
+  "start": "node src/server.js",
+  "dev": "node --watch src/server.js",
+  "test": "node --test",
+  "test:contracts": "node --test backend/test/*.test.js",
+  "postinstall": "node scripts/patch-iconv-lite.js"
+},
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",

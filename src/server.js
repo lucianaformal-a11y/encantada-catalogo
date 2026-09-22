@@ -67,10 +67,12 @@ app.use((req,res,next)=>{
     res.status(400).json({error:e.message});
   });
 });
-const SECRET=process.env.JWT_SECRET;
-if(process.env.NODE_ENV==='production'&&!SECRET) throw new Error('JWT_SECRET obrigatório em produção');
-if(process.env.NODE_ENV==='production'&&SECRET.length<32) throw new Error('JWT_SECRET deve ter pelo menos 32 caracteres em produção');
-const log=async(c,e,id,d,s,detail)=>c.query('INSERT INTO sync_logs(entity,entity_id,direction,status,detail) VALUES($1,$2,$3,$4,$5)',[e,String(id||''),d,s,detail||null]);
+const getSecret=()=>{
+  const secret=process.env.JWT_SECRET;
+  if(process.env.NODE_ENV==='production'&&!secret) throw new Error('JWT_SECRET obrigatório em produção');
+  if(secret&&secret.length<32) throw new Error('JWT_SECRET deve ter pelo menos 32 caracteres em produção');
+  return secret;
+};const log=async(c,e,id,d,s,detail)=>c.query('INSERT INTO sync_logs(entity,entity_id,direction,status,detail) VALUES($1,$2,$3,$4,$5)',[e,String(id||''),d,s,detail||null]);
 function nextSunday(orderDate=new Date(), cutoffHour=16){ const d=new Date(orderDate); const day=d.getDay(); const isSat=day===6; let add=(7-day)%7; if(add===0) add=7; if(isSat && (d.getHours()<cutoffHour || (d.getHours()===cutoffHour&&d.getMinutes()===0&&d.getSeconds()===0))) add=1; else if(isSat && d.getHours()>=cutoffHour) add=8; d.setDate(d.getDate()+add); return d.toISOString().slice(0,10); }
 
 // PDV bridge: local V53/V54 products are upserted into the central database.

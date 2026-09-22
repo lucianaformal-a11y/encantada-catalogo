@@ -454,30 +454,10 @@ app.get('/api/online/catalog', async (req, res) => {
     await client.connect();
 
     const { rows } = await client.query(`
-      SELECT
-        p.*,
-        v.id AS variant_id,
-        v.name AS variant_name,
-        COALESCE(v.stock, 0) AS stock,
-        COALESCE(v.reserved, 0) AS reserved,
-        COALESCE(v.price_delta, 0) AS price_delta
-      FROM products p
-      LEFT JOIN LATERAL (
-        SELECT
-          id,
-          name,
-          stock,
-          reserved,
-          price_delta
-        FROM product_variants
-        WHERE product_id = p.id
-        ORDER BY
-          CASE WHEN name = 'Unidade' THEN 0 ELSE 1 END,
-          id
-        LIMIT 1
-      ) v ON true
-      WHERE p.status = 'active'
-      ORDER BY p.updated_at DESC
+  SELECT id, name
+  FROM products
+  LIMIT 20
+`);
     `);
 
     res.set('Cache-Control', 'no-store');

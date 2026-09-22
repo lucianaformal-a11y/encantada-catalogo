@@ -488,8 +488,37 @@ app.get('/api/ready', async (_req, res) => {
     });
   }
 });
-app.get('/api/products',async(req,res)=>{const {rows}=await pool.query(`SELECT p.*,COALESCE(json_agg(json_build_object('id',v.id,'name',v.name,'attributes',v.attributes,'priceDelta',v.price_delta,'stock',v.stock,'reserved',v.reserved)) FILTER (WHERE v.id IS NOT NULL),'[]') variants FROM products p LEFT JOIN product_variants v ON v.product_id=p.id WHERE p.status='active'' AND p.status='active' GROUP BY p.id ORDER BY p.updated_at DESC`);res.json(rows)});
-const productSchema=z.object({name:z.string().min(1),sku:z.string().optional(),barcode:z.string().optional(),brand:z.string().optional(),category:z.string().optional(),subcategory:z.string().optional(),description:z.string().optional(),price:z.number().nonnegative(),promo_price:z.number().nonnegative().nullable().optional(),online_status:z.enum(['published','physical_only','hidden']).default('physical_only'),featured:z.boolean().optional(),bestseller:z.boolean().optional(),launch:z.boolean().optional(),promotion:z.boolean().optional()});
+app.get('/api/products', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        p.*,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', v.id,
+              'name', v.name,
+              'attributes', v.attributes,
+              'priceDelta', v.price_delta,
+              'stock', v.stock,
+              'reserved', v.reserved
+            )
+          ) FILTER (WHERE v.id IS NOT NULL),
+          '[]'
+        ) variants
+      FROM products p
+      LEFT JOIN product_variants v ON v.product_id = p.id
+      WHERE p.status = 'active'
+      GROUP BY p.id
+      ORDER BY p.updated_at DESC
+    `);
+
+    res.json(rows);
+  } catch (e) {
+    console.error('PRODUCTS ERROR:', e);
+    res.status(500).json({ error: e.message });
+  }
+});const productSchema=z.object({name:z.string().min(1),sku:z.string().optional(),barcode:z.string().optional(),brand:z.string().optional(),category:z.string().optional(),subcategory:z.string().optional(),description:z.string().optional(),price:z.number().nonnegative(),promo_price:z.number().nonnegative().nullable().optional(),online_status:z.enum(['published','physical_only','hidden']).default('physical_only'),featured:z.boolean().optional(),bestseller:z.boolean().optional(),launch:z.boolean().optional(),promotion:z.boolean().optional()});
 app.post('/api/products',async(req,res)=>{const x=productSchema.parse(req.body);const {rows:[p]}=await pool.query(`INSERT INTO products(name,sku,barcode,brand,category,subcategory,description,price,promo_price,online_status,featured,bestseller,launch,promotion) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,[x.name,x.sku||null,x.barcode||null,x.brand||null,x.category||null,x.subcategory||null,x.description||null,x.price,x.promo_price??null,x.online_status,x.featured||false,x.bestseller||false,x.launch||false,x.promotion||false]);await log(pool,'product',p.id,'central-online','ok','created');res.status(201).json(p)});
 app.patch('/api/products/:id',async(req,res)=>{const x=productSchema.partial().parse(req.body);const keys=Object.keys(x);if(!keys.length)return res.status(400).json({error:'Nada para alterar'});const vals=keys.map(k=>x[k]);const set=keys.map((k,i)=>`${k}=$${i+1}`).join(', ')+`,updated_at=now()`;const {rows}=await pool.query(`UPDATE products SET ${set} WHERE id=$${keys.length+1} RETURNING *`,[...vals,req.params.id]);if(!rows[0])return res.status(404).json({error:'Produto não encontrado'});await log(pool,'product',req.params.id,'central-online','ok','updated');res.json(rows[0])});
 app.post('/api/orders',async(req,res)=>{const schema=z.object({customer_id:z.string().uuid().nullable().optional(),items:z.array(z.object({variant_id:z.string().uuid(),qty:z.number().int().positive()})).min(1),fulfillment_type:z.enum(['pickup','francisco_morato_delivery']),delivery_time:z.enum(['14:00','15:00','16:00']).optional(),idempotency_key:z.string().min(8)});const x=schema.parse(req.body);const c=await pool.connect();try{await c.query('BEGIN');const old=await c.query('SELECT * FROM orders WHERE idempotency_key=$1',[x.idempotency_key]);if(old.rows[0]){await c.query('ROLLBACK');return res.json(old.rows[0])}let subtotal=0;const lines=[];for(const i of x.items){const q=await c.query('SELECT v.*,p.name,p.price,p.promo_price FROM product_variants v JOIN products p ON p.id=v.product_id WHERE v.id=$1 AND p.online_status=$2 FOR UPDATE',[i.variant_id,'published']);const v=q.rows[0];if(!v)throw Error('Variação indisponível');if(v.stock-v.reserved<i.qty)throw Error(`Estoque insuficiente para ${v.name}`);const price=Number(v.promo_price??v.price)+Number(v.price_delta);subtotal+=price*i.qty;lines.push({v,qty:i.qty,price});}

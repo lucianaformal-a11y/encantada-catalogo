@@ -474,13 +474,12 @@ app.get('/api/ready', async (_req, res) => {
       error: e.message
     });
   }
-});
-app.get('/api/catalog-test', async (_req, res) => {
+});app.get('/api/catalog-test', async (_req, res) => {
   try {
     const { rows } = await pool.query(
-      "SELECT count(*)::int AS total FROM products WHERE status = 'active'"
+      "SELECT id FROM products LIMIT 1"
     );
-    res.json({ ok: true, total: rows[0].total });
+    res.json({ ok: true, product: rows[0] || null });
   } catch (e) {
     console.error('CATALOG TEST ERROR:', e);
     res.status(503).json({

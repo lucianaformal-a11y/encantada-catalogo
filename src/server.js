@@ -525,15 +525,30 @@ app.get('/api/catalog-test', async (_req, res) => {
       ok: true,
       product: result.rows[0] || null
     });
+
+    client.end().catch(() => {});
   } catch (e) {
-    console.error('CATALOG TEST ERROR:', e);
+    console.error('CATALOG TEST ERROR:', {
+      name: e?.name,
+      message: e?.message,
+      code: e?.code,
+      detail: e?.detail,
+      stack: e?.stack,
+      string: String(e)
+    });
 
     res.status(503).json({
       ok: false,
-      error: e.message
+      error: {
+        name: e?.name || null,
+        message: e?.message || null,
+        code: e?.code || null,
+        detail: e?.detail || null,
+        string: String(e)
+      }
     });
-  } finally {
-    await client.end().catch(() => {});
+
+    client.end().catch(() => {});
   }
 });
 app.get('/api/products', async (req, res) => {

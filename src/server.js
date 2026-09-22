@@ -474,18 +474,31 @@ app.get('/api/ready', async (_req, res) => {
       error: e.message
     });
   }
-});app.get('/api/catalog-test', async (_req, res) => {
+app.get('/api/catalog-test', async (_req, res) => {
+  const client = new Client({
+    connectionString: env.HYPERDRIVE.connectionString
+  });
+
   try {
-    const { rows } = await pool.query(
-      "SELECT id FROM products LIMIT 1"
+    await client.connect();
+
+    const result = await client.query(
+      'SELECT id FROM products LIMIT 1'
     );
-    res.json({ ok: true, product: rows[0] || null });
+
+    res.json({
+      ok: true,
+      product: result.rows[0] || null
+    });
   } catch (e) {
     console.error('CATALOG TEST ERROR:', e);
+
     res.status(503).json({
       ok: false,
       error: e.message
     });
+  } finally {
+    await client.end().catch(() => {});
   }
 });
 app.get('/api/products', async (req, res) => {

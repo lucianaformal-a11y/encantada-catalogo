@@ -455,7 +455,7 @@ app.get('/api/online/catalog',async(req,res)=>{
       ORDER BY CASE WHEN name='Unidade' THEN 0 ELSE 1 END,id
       LIMIT 1
     ) v ON true
-    WHERE p.status='active' AND p.online_status='published'
+    WHERE p.status='active'
     ORDER BY p.updated_at DESC`);
   res.set('Cache-Control','no-store');
   res.json(rows);

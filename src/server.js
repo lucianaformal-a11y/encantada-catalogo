@@ -26,7 +26,47 @@ app.use(helmet({crossOriginResourcePolicy:false,contentSecurityPolicy:{directive
 const configuredCorsOrigins=[...(process.env.CORS_ORIGIN?.split(',').map(v=>v.trim()).filter(Boolean)||[]), ...(process.env.PUBLIC_URL?[process.env.PUBLIC_URL.trim()]:[])];
 const isLocalCorsOrigin=origin=>!origin||origin==='null'||/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 app.use(cors({origin:(origin,callback)=>{if(isLocalCorsOrigin(origin)||configuredCorsOrigins.includes(origin))return callback(null,true);return callback(new Error('CORS não permitido para esta origem'));},credentials:true}));
-app.use(express.json({limit:'25mb'}));
+app.use((req,res,next)=>{
+  if(!['POST','PUT','PATCH'].includes(req.method)){
+    return next();
+  }
+
+  const contentType=String(req.headers['content-type']||'').toLowerCase();
+
+  if(!contentType.includes('application/json')){
+    return next();
+  }
+
+  let data='';
+  let size=0;
+  const limit=25*1024*1024;
+
+  req.setEncoding('utf8');
+
+  req.on('data',chunk=>{
+    size+=Buffer.byteLength(chunk,'utf8');
+
+    if(size>limit){
+      req.destroy();
+      return;
+    }
+
+    data+=chunk;
+  });
+
+  req.on('end',()=>{
+    try{
+      req.body=data?JSON.parse(data):{};
+      next();
+    }catch(e){
+      res.status(400).json({error:'JSON inválido'});
+    }
+  });
+
+  req.on('error',e=>{
+    res.status(400).json({error:e.message});
+  });
+});
 app.use('/api/customer/auth',rateLimit({windowMs:15*60*1000,max:20,standardHeaders:true,legacyHeaders:false}));
 app.use('/api/payments',rateLimit({windowMs:60*1000,max:120,standardHeaders:true,legacyHeaders:false}));
 const SECRET=process.env.JWT_SECRET;

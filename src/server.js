@@ -445,22 +445,56 @@ app.post('/api/pdv/reservations/:id/reject',async(req,res)=>{
   const c=await pool.connect();try{await c.query('BEGIN');const {rows:[o]}=await c.query("UPDATE orders SET status='cancelled',updated_at=now() WHERE id=$1 AND status='reservation_requested' RETURNING *",[req.params.id]);if(!o)throw Error('Solicitação de reserva não encontrada ou já processada');await c.query('INSERT INTO audit_logs(actor,action,details) VALUES($1,$2,$3)',['pdv','reservation_rejected',JSON.stringify({order_id:o.id})]);await c.query('COMMIT');res.json({...o,reservation_status:'REJECTED'});}catch(e){await c.query('ROLLBACK').catch(()=>{});res.status(409).json({error:e.message});}finally{c.release();}
 });
 
-app.get('/api/online/catalog',async(req,res)=>{
-  const {rows}=await pool.query(`SELECT p.*,v.id variant_id,v.name variant_name,COALESCE(v.stock,0) stock,COALESCE(v.reserved,0) reserved,COALESCE(v.price_delta,0) price_delta
-    FROM products p
-    LEFT JOIN LATERAL (
-      SELECT id,name,stock,reserved,price_delta
-      FROM product_variants
-      WHERE product_id=p.id
-      ORDER BY CASE WHEN name='Unidade' THEN 0 ELSE 1 END,id
-      LIMIT 1
-    ) v ON true
-    WHERE p.status='active'
-    ORDER BY p.updated_at DESC`);
-  res.set('Cache-Control','no-store');
-  res.json(rows);
-});
+app.get('/api/online/catalog', async (req, res) => {
+  const client = new Client({
+    connectionString: env.HYPERDRIVE.connectionString
+  });
 
+  try {
+    await client.connect();
+
+    const { rows } = await client.query(`
+      SELECT
+        p.*,
+        v.id AS variant_id,
+        v.name AS variant_name,
+        COALESCE(v.stock, 0) AS stock,
+        COALESCE(v.reserved, 0) AS reserved,
+        COALESCE(v.price_delta, 0) AS price_delta
+      FROM products p
+      LEFT JOIN LATERAL (
+        SELECT
+          id,
+          name,
+          stock,
+          reserved,
+          price_delta
+        FROM product_variants
+        WHERE product_id = p.id
+        ORDER BY
+          CASE WHEN name = 'Unidade' THEN 0 ELSE 1 END,
+          id
+        LIMIT 1
+      ) v ON true
+      WHERE p.status = 'active'
+      ORDER BY p.updated_at DESC
+    `);
+
+    res.set('Cache-Control', 'no-store');
+    res.json(rows);
+
+  } catch (e) {
+    console.error('ONLINE CATALOG ERROR:', e);
+
+    res.status(503).json({
+      ok: false,
+      error: e.message
+    });
+
+  } finally {
+    await client.end().catch(() => {});
+  }
+});
 app.get('/health',(_req,res)=>res.json({ok:true,service:'encantada-api'}));
 app.get('/api/ready', async (_req, res) => {
   try {

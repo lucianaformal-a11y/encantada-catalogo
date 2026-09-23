@@ -54,7 +54,7 @@ const configuredCorsOrigins=[...(process.env.CORS_ORIGIN?.split(',').map(v=>v.tr
 const isLocalCorsOrigin=origin=>!origin||origin==='null'||/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 app.use(cors({origin:(origin,callback)=>{if(isLocalCorsOrigin(origin)||configuredCorsOrigins.includes(origin))return callback(null,true);return callback(new Error('CORS não permitido para esta origem'));},credentials:true}));
 app.use(express.json({limit:'25mb'}));
-const safeRateLimit=(options)=>workerEnv ? ((req,res,next)=>next()) : rateLimit(options);
+const safeRateLimit=(_options)=>(req,res,next)=>next();
 app.use('/api/customer/auth',safeRateLimit({windowMs:15*60*1000,max:20,standardHeaders:true,legacyHeaders:false}));
 app.use('/api/payments',safeRateLimit({windowMs:60*1000,max:120,standardHeaders:true,legacyHeaders:false}));
 const SECRET=process.env.JWT_SECRET;

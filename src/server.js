@@ -54,8 +54,9 @@ const configuredCorsOrigins=[...(process.env.CORS_ORIGIN?.split(',').map(v=>v.tr
 const isLocalCorsOrigin=origin=>!origin||origin==='null'||/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 app.use(cors({origin:(origin,callback)=>{if(isLocalCorsOrigin(origin)||configuredCorsOrigins.includes(origin))return callback(null,true);return callback(new Error('CORS não permitido para esta origem'));},credentials:true}));
 app.use(express.json({limit:'25mb'}));
-app.use('/api/customer/auth',rateLimit({windowMs:15*60*1000,max:20,standardHeaders:true,legacyHeaders:false}));
-app.use('/api/payments',rateLimit({windowMs:60*1000,max:120,standardHeaders:true,legacyHeaders:false}));
+const safeRateLimit=(options)=>workerEnv ? ((req,res,next)=>next()) : rateLimit(options);
+app.use('/api/customer/auth',safeRateLimit({windowMs:15*60*1000,max:20,standardHeaders:true,legacyHeaders:false}));
+app.use('/api/payments',safeRateLimit({windowMs:60*1000,max:120,standardHeaders:true,legacyHeaders:false}));
 const SECRET=process.env.JWT_SECRET;
 if(process.env.NODE_ENV==='production'&&!SECRET) throw new Error('JWT_SECRET obrigatório em produção');
 if(process.env.NODE_ENV==='production'&&SECRET.length<32) throw new Error('JWT_SECRET deve ter pelo menos 32 caracteres em produção');

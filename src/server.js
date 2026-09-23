@@ -1,14 +1,25 @@
 import express from 'express'; import cors from 'cors'; import jwt from 'jsonwebtoken'; import helmet from 'helmet'; import rateLimit from 'express-rate-limit'; import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto'; import fs from 'node:fs'; import path from 'node:path'; import pg from 'pg'; import {z} from 'zod'; import {paymentProvider} from './payments/index.js';
 import {MercadoPagoPaymentProvider} from './payments/mercadopago.js';
-import { env } from 'cloudflare:workers';
+let workerEnv = null;
+try {
+  const mod = await import('cloudflare:workers');
+  workerEnv = mod.env;
+} catch (e) {
+  // Execução local com Node.js: Cloudflare Workers não está disponível.
+  workerEnv = null;
+}
 
 const {Client}=pg;
 const app=express();
 
-const makeClient=()=>new Client({
-  connectionString:env.HYPERDRIVE.connectionString
-});
+const makeClient=()=>{
+  const connectionString = workerEnv?.HYPERDRIVE?.connectionString || process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error('DATABASE_URL não configurado para execução local.');
+  }
+  return new Client({connectionString});
+};
 
 const pool={
   async query(...args){

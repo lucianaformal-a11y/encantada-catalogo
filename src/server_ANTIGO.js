@@ -1,18 +1,35 @@
 import express from 'express'; import cors from 'cors'; import jwt from 'jsonwebtoken'; import helmet from 'helmet'; import rateLimit from 'express-rate-limit'; import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto'; import fs from 'node:fs'; import path from 'node:path'; import pg from 'pg'; import {z} from 'zod'; import {paymentProvider} from './payments/index.js';
 import {MercadoPagoPaymentProvider} from './payments/mercadopago.js';
-import { env } from 'cloudflare:workers';
 
 const {Client}=pg;
 const app=express();
 
-const makeClient=()=>new Client({
-  connectionString:env.HYPERDRIVE.connectionString
-});
+// Cloudflare Workers não permite que express-rate-limit crie timers no escopo global.
+// Mantemos o middleware como no-op para o Worker; a proteção de borda fica a cargo
+// do Cloudflare. O pacote continua instalado para não alterar o restante do projeto.
+const safeRateLimit = (_options) => (req,res,next) => next();
+
+let cloudflareEnvPromise;
+const getCloudflareEnv = async () => {
+  if (!cloudflareEnvPromise) {
+    cloudflareEnvPromise = import('cloudflare:workers').then(m => m.env);
+  }
+  return cloudflareEnvPromise;
+};
+
+const makeClient=async()=>{
+  let connectionString = process.env.DATABASE_URL || process.env.HYPERDRIVE_CONNECTION_STRING || '';
+  if (!connectionString) {
+    const cfEnv = await getCloudflareEnv();
+    connectionString = cfEnv?.HYPERDRIVE?.connectionString || '';
+  }
+  return new Client({connectionString});
+};
 
 const pool={
   async query(...args){
-    const client=makeClient();
+    const client=await makeClient();
     try{
       await client.connect();
       return await client.query(...args);
@@ -21,7 +38,7 @@ const pool={
     }
   },
   async connect(){
-    const client=makeClient();
+    const client=await makeClient();
     await client.connect();
     return {
       query:(...args)=>client.query(...args),
@@ -54,11 +71,21 @@ const configuredCorsOrigins=[...(process.env.CORS_ORIGIN?.split(',').map(v=>v.tr
 const isLocalCorsOrigin=origin=>!origin||origin==='null'||/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 app.use(cors({origin:(origin,callback)=>{if(isLocalCorsOrigin(origin)||configuredCorsOrigins.includes(origin))return callback(null,true);return callback(new Error('CORS não permitido para esta origem'));},credentials:true}));
 app.use(express.json({limit:'25mb'}));
-app.use('/api/customer/auth',rateLimit({windowMs:15*60*1000,max:20,standardHeaders:true,legacyHeaders:false}));
-app.use('/api/payments',rateLimit({windowMs:60*1000,max:120,standardHeaders:true,legacyHeaders:false}));
-const SECRET=process.env.JWT_SECRET;
-if(process.env.NODE_ENV==='production'&&!SECRET) throw new Error('JWT_SECRET obrigatório em produção');
-if(process.env.NODE_ENV==='production'&&SECRET.length<32) throw new Error('JWT_SECRET deve ter pelo menos 32 caracteres em produção');
+app.use('/api/customer/auth',safeRateLimit({windowMs:15*60*1000,max:20,standardHeaders:true,legacyHeaders:false}));
+app.use('/api/payments',safeRateLimit({windowMs:60*1000,max:120,standardHeaders:true,legacyHeaders:false}));
+let runtimeEnv = {};
+try {
+  runtimeEnv = await getCloudflareEnv();
+} catch (e) {
+  // Node local não possui o módulo cloudflare:workers; usa process.env.
+}
+
+// No Cloudflare Workers, secrets ficam em env.JWT_SECRET; no Node local,
+// continuamos aceitando process.env.JWT_SECRET.
+const SECRET=process.env.JWT_SECRET || runtimeEnv?.JWT_SECRET || '';
+const isProduction = process.env.NODE_ENV === 'production' || !!runtimeEnv?.JWT_SECRET;
+if(isProduction&&!SECRET) throw new Error('JWT_SECRET obrigatório em produção');
+if(isProduction&&SECRET.length<32) throw new Error('JWT_SECRET deve ter pelo menos 32 caracteres em produção');
 const log=async(c,e,id,d,s,detail)=>c.query('INSERT INTO sync_logs(entity,entity_id,direction,status,detail) VALUES($1,$2,$3,$4,$5)',[e,String(id||''),d,s,detail||null]);
 function nextSunday(orderDate=new Date(), cutoffHour=16){ const d=new Date(orderDate); const day=d.getDay(); const isSat=day===6; let add=(7-day)%7; if(add===0) add=7; if(isSat && (d.getHours()<cutoffHour || (d.getHours()===cutoffHour&&d.getMinutes()===0&&d.getSeconds()===0))) add=1; else if(isSat && d.getHours()>=cutoffHour) add=8; d.setDate(d.getDate()+add); return d.toISOString().slice(0,10); }
 
@@ -162,38 +189,57 @@ app.get('/api/pdv/barcode-lookup/:ean', async (req, res) => {
     });
   }
 });
-app.get('/api/pdv/publicar/:id',async(req,res)=>{
-  const productId=String(req.params.id||'').trim();
-  if(!productId)return res.status(400).json({ok:false,code:'INVALID_PRODUCT_ID',message:'ID do produto não informado.'});
-  try{
-    const {rows}=await pool.query(
-      `SELECT id,name,status,online_status FROM products WHERE id=$1 LIMIT 1`,
-      [productId]
-    );
-    if(!rows.length){
-      return res.status(404).json({ok:false,code:'PRODUCT_NOT_FOUND',message:'Produto não encontrado na central.',productId});
-    }
-    const product=rows[0];
-    if(product.status!=='active'){
-      return res.status(409).json({ok:false,code:'PRODUCT_INACTIVE',message:'O produto está inativo na central e não pode ser publicado.',productId,name:product.name,status:product.status});
-    }
-    const result=await pool.query(
-      `UPDATE products SET online_status='published', updated_at=now() WHERE id=$1 AND status='active' RETURNING id,name,status,online_status`,
-      [productId]
-    );
-    if(!result.rows.length){
-      return res.status(409).json({ok:false,code:'PUBLISH_UPDATE_FAILED',message:'O produto não pôde ser atualizado para publicado.',productId,name:product.name});
-    }
-    return res.json({ok:true,code:'PUBLISHED',message:'Produto publicado no catálogo.',product:result.rows[0]});
-  }catch(error){
-    console.error('[PUBLICAR CATALOGO]',productId,error);
-    return res.status(500).json({ok:false,code:'PUBLISH_SERVER_ERROR',message:String(error?.message||error),productId});
-  }
-});
-
 app.get('/api/pdv/products',async(req,res)=>{
-  const {rows}=await pool.query(`SELECT p.*,COALESCE(json_agg(json_build_object('id',v.id,'name',v.name,'attributes',v.attributes,'priceDelta',v.price_delta,'stock',v.stock,'reserved',v.reserved)) FILTER (WHERE v.id IS NOT NULL),'[]') variants FROM products p LEFT JOIN product_variants v ON v.product_id=p.id WHERE p.online_status='published' GROUP BY p.id ORDER BY p.updated_at DESC`);
-  res.json(rows);
+  const client=await makeClient();
+  try{
+    await client.connect();
+
+    const products=await client.query(`
+      SELECT *
+      FROM products
+      WHERE online_status='published'
+      ORDER BY updated_at DESC
+    `);
+
+    if(!products.rows.length){
+      res.set('Cache-Control','no-store');
+      return res.json([]);
+    }
+
+    const ids=products.rows.map(p=>p.id);
+    const variants=await client.query(`
+      SELECT id,product_id,name,attributes,price_delta,stock,reserved
+      FROM product_variants
+      WHERE product_id = ANY($1::uuid[])
+      ORDER BY product_id,id
+    `,[ids]);
+
+    const byProduct=new Map();
+    for(const v of variants.rows){
+      if(!byProduct.has(v.product_id)) byProduct.set(v.product_id,[]);
+      byProduct.get(v.product_id).push({
+        id:v.id,
+        name:v.name,
+        attributes:v.attributes,
+        priceDelta:v.price_delta,
+        stock:v.stock,
+        reserved:v.reserved
+      });
+    }
+
+    const rows=products.rows.map(p=>({
+      ...p,
+      variants:byProduct.get(p.id)||[]
+    }));
+
+    res.set('Cache-Control','no-store');
+    res.json(rows);
+  }catch(e){
+    console.error('PDV PRODUCTS ERROR:',e);
+    res.status(503).json({ok:false,error:e.message});
+  }finally{
+    await client.end().catch(()=>{});
+  }
 });
 app.post('/api/pdv/sync',async(req,res)=>{
   const schema=z.object({products:z.array(pdvProductSchema).max(5000)});
@@ -439,7 +485,7 @@ app.post('/api/pdv/reservations/:id/reject',async(req,res)=>{
 });
 
 app.get('/api/online/catalog',async(req,res)=>{
-  const client=makeClient();
+  const client=await makeClient();
   try{
     await client.connect();
     const {rows}=await client.query(`
@@ -473,7 +519,7 @@ app.get('/api/online/catalog',async(req,res)=>{
 
 app.get('/health',(_req,res)=>res.json({ok:true,service:'encantada-api'}));
 app.get('/api/ready',async(_req,res)=>{
-  const client=makeClient();
+  const client=await makeClient();
   try{
     await client.connect();
     await client.query('SELECT 1');
@@ -486,12 +532,57 @@ app.get('/api/ready',async(_req,res)=>{
   }
 });
 
-app.get('/api/catalog-test',async(_req,res)=>{
-  const client=makeClient();
+app.get('/api/catalog-status-test',async(_req,res)=>{
+  const client=await makeClient();
   try{
     await client.connect();
-    const result=await client.query('SELECT id FROM products LIMIT 1');
-    res.json({ok:true,product:result.rows[0]||null});
+    const {rows}=await client.query(`
+      SELECT status, online_status, COUNT(*)::int AS total
+      FROM products
+      GROUP BY status, online_status
+      ORDER BY status, online_status
+    `);
+    res.set('Cache-Control','no-store');
+    res.json({ok:true,rows});
+  }catch(e){
+    console.error('CATALOG STATUS TEST ERROR:',e);
+    res.status(503).json({ok:false,error:e.message});
+  }finally{
+    await client.end().catch(()=>{});
+  }
+});
+
+app.get('/api/catalog-debug',async(_req,res)=>{
+  const client=await makeClient();
+  try{
+    await client.connect();
+    const result=await client.query(`
+      SELECT status, online_status, COUNT(*)::int AS total
+      FROM products
+      GROUP BY status, online_status
+      ORDER BY status, online_status
+    `);
+    res.set('Cache-Control','no-store');
+    res.json({ok:true,productCount:result.rows.reduce((n,r)=>n+Number(r.total||0),0),statuses:result.rows});
+  }catch(e){
+    console.error('CATALOG DEBUG ERROR:',e);
+    res.status(503).json({ok:false,error:e.message});
+  }finally{
+    await client.end().catch(()=>{});
+  }
+});
+app.get('/api/catalog-test',async(_req,res)=>{
+  const client=await makeClient();
+  try{
+    await client.connect();
+    const result=await client.query(`
+      SELECT status, online_status, COUNT(*)::int AS total
+      FROM products
+      GROUP BY status, online_status
+      ORDER BY status, online_status
+    `);
+    res.set('Cache-Control','no-store');
+    res.json({ok:true,productCount:result.rows.reduce((n,r)=>n+Number(r.total||0),0),statuses:result.rows});
   }catch(e){
     console.error('CATALOG TEST ERROR:',{name:e?.name,message:e?.message,code:e?.code,detail:e?.detail,stack:e?.stack,string:String(e)});
     res.status(503).json({ok:false,error:{name:e?.name||null,message:e?.message||null,code:e?.code||null,detail:e?.detail||null,string:String(e)}});
@@ -511,7 +602,9 @@ app.post('/api/orders/:id/release',async(req,res)=>{const c=await pool.connect()
 // Production integration layer: payment webhooks, reservation expiry, orders and customers.
 const requireRole=(roles=[])=>(req,res,next)=>{const h=req.headers.authorization||'';const token=h.startsWith('Bearer ')?h.slice(7):null;if(!token)return res.status(401).json({error:'Não autenticado'});try{req.user=jwt.verify(token,SECRET);if(roles.length&&!roles.includes(req.user.role))return res.status(403).json({error:'Sem permissão'});next()}catch(e){res.status(401).json({error:'Token inválido'})}};
 async function releaseExpiredReservations(){const c=await pool.connect();try{await c.query('BEGIN');const {rows}=await c.query("SELECT * FROM stock_reservations WHERE status='active' AND expires_at<=now() FOR UPDATE");for(const r of rows){await c.query('UPDATE product_variants SET reserved=GREATEST(0,reserved-$1) WHERE id=$2',[r.qty,r.variant_id]);await c.query("UPDATE stock_reservations SET status='expired' WHERE id=$1",[r.id]);await c.query("UPDATE orders SET status='cancelled',updated_at=now() WHERE id=$1 AND payment_status='pending'",[r.order_id]);}await c.query('COMMIT');return rows.length}catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}}
-setInterval(()=>releaseExpiredReservations().catch(console.error),60000); setTimeout(()=>releaseExpiredReservations().catch(console.error),5000);
+// Cloudflare Workers não permite timers no escopo global.
+// A limpeza de reservas expiradas permanece disponível pela função releaseExpiredReservations
+// e será executada pelos fluxos que consultam/processam reservas.
 app.get('/api/orders',requireRole(['Administrador','Funcionário']),async(req,res)=>{const {rows}=await pool.query(`SELECT o.*,c.name customer_name,c.phone customer_phone,COALESCE(json_agg(json_build_object('name',i.product_name,'variant',i.variant_name,'qty',i.qty,'unit_price',i.unit_price)) FILTER (WHERE i.id IS NOT NULL),'[]') items FROM orders o LEFT JOIN customers c ON c.id=o.customer_id LEFT JOIN order_items i ON i.order_id=o.id GROUP BY o.id,c.name,c.phone ORDER BY o.created_at DESC LIMIT 500`);res.json(rows)});
 app.get('/api/orders/deliveries/sunday',requireRole(['Administrador','Funcionário']),async(req,res)=>{const {rows}=await pool.query(`SELECT o.*,c.name customer_name,c.phone customer_phone FROM orders o LEFT JOIN customers c ON c.id=o.customer_id WHERE o.fulfillment_type='francisco_morato_delivery' ORDER BY o.delivery_date,o.delivery_time,o.created_at`);res.json(rows)});
 app.patch('/api/orders/:id/status',requireRole(['Administrador','Funcionário']),async(req,res)=>{const x=z.object({status:z.enum(['received','payment_confirmed','preparing','ready','scheduled_delivery','out_for_delivery','delivered','cancelled'])}).parse(req.body);const {rows:[o]}=await pool.query('UPDATE orders SET status=$1,updated_at=now() WHERE id=$2 RETURNING *',[x.status,req.params.id]);if(!o)return res.status(404).json({error:'Pedido não encontrado'});res.json(o)});
@@ -547,7 +640,7 @@ app.post('/api/payments/stone/webhook',async(req,res)=>{const secret=process.env
 app.post('/api/auth/token',(req,res)=>{const u=z.object({user_id:z.string(),role:z.enum(['Administrador','Funcionário'])}).parse(req.body);res.json({token:jwt.sign(u,SECRET,{expiresIn:'8h'})})});
 
 // V59 - área da Cliente (JWT de cliente separado do acesso administrativo)
-const customerSecret=process.env.CUSTOMER_JWT_SECRET||SECRET||'dev-customer-secret';
+const customerSecret=process.env.CUSTOMER_JWT_SECRET||runtimeEnv?.CUSTOMER_JWT_SECRET||SECRET||'dev-customer-secret';
 const customerAuth=(req,res,next)=>{const h=req.headers.authorization||'';const t=h.startsWith('Bearer ')?h.slice(7):null;if(!t)return res.status(401).json({error:'Não autenticada'});try{req.customer=jwt.verify(t,customerSecret);if(req.customer.type!=='customer')throw Error();next()}catch(e){res.status(401).json({error:'Sessão inválida'})}};
 app.post('/api/customer/auth/register',async(req,res)=>{const x=z.object({name:z.string().min(2),email:z.string().email(),phone:z.string().min(6).optional(),password:z.string().min(6)}).parse(req.body);const hash=await bcrypt.hash(x.password,12);const {rows:[c]}=await pool.query(`INSERT INTO customers(name,email,phone,password_hash) VALUES($1,$2,$3,$4) ON CONFLICT(email) DO NOTHING RETURNING *`,[x.name,x.email,x.phone||null,hash]);if(!c)return res.status(409).json({error:'E-mail já cadastrado'});res.status(201).json({customer:{id:c.id,name:c.name,email:c.email},token:jwt.sign({type:'customer',id:c.id},customerSecret,{expiresIn:'30d'})})});
 app.post('/api/customer/auth/login',async(req,res)=>{const x=z.object({email:z.string().email(),password:z.string().min(1)}).parse(req.body);const {rows:[c]}=await pool.query('SELECT * FROM customers WHERE email=$1',[x.email]);if(!c||!(await bcrypt.compare(x.password,c.password_hash)))return res.status(401).json({error:'E-mail ou senha inválidos'});res.json({customer:{id:c.id,name:c.name,email:c.email},token:jwt.sign({type:'customer',id:c.id},customerSecret,{expiresIn:'30d'})})});

@@ -532,12 +532,57 @@ app.get('/api/ready',async(_req,res)=>{
   }
 });
 
+app.get('/api/catalog-status-test',async(_req,res)=>{
+  const client=await makeClient();
+  try{
+    await client.connect();
+    const {rows}=await client.query(`
+      SELECT status, online_status, COUNT(*)::int AS total
+      FROM products
+      GROUP BY status, online_status
+      ORDER BY status, online_status
+    `);
+    res.set('Cache-Control','no-store');
+    res.json({ok:true,rows});
+  }catch(e){
+    console.error('CATALOG STATUS TEST ERROR:',e);
+    res.status(503).json({ok:false,error:e.message});
+  }finally{
+    await client.end().catch(()=>{});
+  }
+});
+
+app.get('/api/catalog-debug',async(_req,res)=>{
+  const client=await makeClient();
+  try{
+    await client.connect();
+    const result=await client.query(`
+      SELECT status, online_status, COUNT(*)::int AS total
+      FROM products
+      GROUP BY status, online_status
+      ORDER BY status, online_status
+    `);
+    res.set('Cache-Control','no-store');
+    res.json({ok:true,productCount:result.rows.reduce((n,r)=>n+Number(r.total||0),0),statuses:result.rows});
+  }catch(e){
+    console.error('CATALOG DEBUG ERROR:',e);
+    res.status(503).json({ok:false,error:e.message});
+  }finally{
+    await client.end().catch(()=>{});
+  }
+});
 app.get('/api/catalog-test',async(_req,res)=>{
   const client=await makeClient();
   try{
     await client.connect();
-    const result=await client.query('SELECT id FROM products LIMIT 1');
-    res.json({ok:true,product:result.rows[0]||null});
+    const result=await client.query(`
+      SELECT status, online_status, COUNT(*)::int AS total
+      FROM products
+      GROUP BY status, online_status
+      ORDER BY status, online_status
+    `);
+    res.set('Cache-Control','no-store');
+    res.json({ok:true,productCount:result.rows.reduce((n,r)=>n+Number(r.total||0),0),statuses:result.rows});
   }catch(e){
     console.error('CATALOG TEST ERROR:',{name:e?.name,message:e?.message,code:e?.code,detail:e?.detail,stack:e?.stack,string:String(e)});
     res.status(503).json({ok:false,error:{name:e?.name||null,message:e?.message||null,code:e?.code||null,detail:e?.detail||null,string:String(e)}});

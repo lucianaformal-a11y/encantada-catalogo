@@ -1,3 +1,4 @@
+```
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -22,8 +23,6 @@ main{padding:26px 0 90px}.intro{display:flex;align-items:end;gap:15px;margin-bot
 .empty{text-align:center;padding:50px 15px;color:var(--muted)}
 .overlay{position:fixed;inset:0;background:#23151d88;z-index:20;display:none}.overlay.open{display:block}.drawer{position:absolute;right:0;top:0;height:100%;width:min(460px,100%);background:#fff;padding:20px;overflow:auto}.drawer h2{font:700 25px Georgia,serif;color:var(--plum);margin:0}.drawerhead{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:13px}.close{border:0;background:#f5e9ed;color:var(--plum);border-radius:9px;padding:7px 10px}.line{display:grid;grid-template-columns:1fr auto;gap:10px;padding:13px 0;border-bottom:1px solid var(--line)}.line small{color:var(--muted)}.qty{display:flex;align-items:center;gap:6px}.qty button{width:28px;height:28px;border:1px solid var(--line);background:#fff;border-radius:7px}.remove{border:0;background:transparent;color:#b43d49;font-size:11px}.total{font-size:25px;font-weight:900;color:var(--plum);margin:18px 0}.fields{display:grid;gap:9px}.fields input{border:1px solid var(--line);border-radius:10px;padding:11px}.actions{display:grid;gap:9px;margin-top:12px}.wa{border:0;background:#2d7a57;color:#fff;border-radius:11px;padding:12px;font-weight:900}.reserve{border:0;background:var(--rose);color:#fff;border-radius:11px;padding:12px;font-weight:900}.note{font-size:11px;color:var(--muted);line-height:1.45;margin-top:10px}
 @media(max-width:900px){.grid{grid-template-columns:repeat(3,1fr)}}@media(max-width:650px){.head{flex-wrap:wrap;padding:12px 0}.search{order:3;flex-basis:100%;max-width:none}.grid{grid-template-columns:repeat(2,1fr)}.intro{display:block}.intro h1{font-size:29px}}@media(max-width:400px){.grid{grid-template-columns:1fr 1fr}.info{padding:10px}.name{font-size:14px}}
-
-.gate{position:fixed;inset:0}.gatebox{width:min(430px,calc(100% - 28px));background:#fff;border-radius:20px;padding:24px;box-shadow:0 20px 70px rgba(0,0,0,.28)}.gatebrand{text-align:center;font-size:25px;font-weight:900;color:var(--plum);margin-bottom:4px}.gatebox h2{margin:6px 0 8px;text-align:center}.gatebox p{text-align:center;color:var(--muted);font-size:14px;margin:0 0 18px}.gatefields{display:grid;gap:10px}.gatefields label{font-size:13px;font-weight:800;color:var(--plum)}.gatefields input{display:block;width:100%;box-sizing:border-box;margin-top:5px;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:15px}.consentTitle{font-size:13px;font-weight:800;margin:18px 0 9px}.consentButtons{display:grid;grid-template-columns:1fr 1fr;gap:8px}.consent{border:1px solid var(--line);background:#fff;border-radius:10px;padding:11px;font-weight:800;cursor:pointer}.consent.active{border-color:var(--rose);background:#fff1f5;color:var(--plum)}.enterCatalog{width:100%;border:0;background:var(--rose);color:#fff;border-radius:11px;padding:13px;margin-top:14px;font-weight:900;font-size:15px;cursor:pointer}.gateError{min-height:20px;color:#b43d49;font-size:12px;font-weight:700;margin-top:9px}.gateNote{text-align:center;color:var(--muted);font-size:11px;margin-top:9px}
 </style>
 </head>
 <body>
@@ -40,55 +39,28 @@ main{padding:26px 0 90px}.intro{display:flex;align-items:end;gap:15px;margin-bot
   <section id="grid" class="grid"></section>
 </main>
 
-<div id="customerGate" class="overlay gate" style="z-index:1000;background:rgba(36,18,30,.72);display:none;align-items:center;justify-content:center;">
- <div class="gatebox" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
-  <div class="gatebrand">Encantada</div>
-  <h2 id="gateTitle">💖 Bem-vinda à Encantada!</h2>
-  <p>Para entrar no catálogo, informe seu nome e WhatsApp.</p>
-  <div class="gatefields">
-   <label>Nome<input id="gateName" type="text" minlength="3" autocomplete="name" placeholder="Seu nome"></label>
-   <label>WhatsApp<input id="gatePhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="11999999999"></label>
-  </div>
-  <div class="consentTitle">Quer receber novidades e promoções da Encantada pelo WhatsApp?</div>
-  <div class="consentButtons">
-   <button type="button" id="consentYes" class="consent active">✓ Aceito receber</button>
-   <button type="button" id="consentNo" class="consent">Não aceito</button>
-  </div>
-  <button type="button" id="enterCatalog" class="enterCatalog" onclick="submitCustomerGate(); return false;">Entrar no catálogo</button>
-  <div id="gateError" class="gateError" aria-live="polite"></div>
-  <div class="gateNote">Você poderá alterar essa preferência depois.</div>
- </div>
-</div>
-
 <div id="overlay" class="overlay" onclick="if(event.target===this)closeCart()">
  <aside class="drawer">
   <div class="drawerhead"><h2>Minha lista</h2><button class="close" onclick="closeCart()">Fechar</button></div>
   <div id="list"></div>
   <div class="total">Total: <span id="total">R$ 0,00</span></div>
   <div class="fields">
-   <div id="customerSummary" style="border:1px solid var(--line);border-radius:10px;padding:11px;font-size:13px;background:#fff7fa"></div>
-   <button type="button" id="changeCustomer" style="border:0;background:transparent;color:var(--plum);font-weight:800;text-align:left;padding:0;cursor:pointer">Alterar meus dados</button>
+   <input id="customer" placeholder="Seu nome">
+   <input id="phone" placeholder="Seu WhatsApp" required inputmode="tel" autocomplete="tel">
   </div>
   <div class="actions">
-   <button class="reserve" type="button">Solicitar reserva</button>
+   <button class="reserve" onclick="requestReservation()">Solicitar reserva</button>
   </div>
   <div class="note">Informe seu WhatsApp para que a Encantada possa entrar em contato. A reserva só será confirmada após a aprovação da loja no PDV.</div>
  </aside>
 </div>
 
 <script>
-const API='https://encantada-catalogo.luciana-formal.workers.dev';
+const API=(localStorage.getItem('encantada_api_url')||window.location.origin).replace(/\/$/,'');
 let products=[], cart={}, category='Todos';
-const CUSTOMER_KEY='encantada_catalog_customer_v1';
-let customerProfile=null;
-let marketingConsent='yes';
 
 const money=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(v)||0);
 const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
-function validCatalogWhatsApp(value){
- const digits=String(value||'').replace(/\D/g,'');
- return /^([1-9][0-9])9[0-9]{8}$/.test(digits);
-}
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
 
@@ -97,44 +69,35 @@ const PHOTO_PACKAGE = [{"keys":["ean:4958689588561"],"data":"data:image/webp;bas
 function dedupeCatalogProducts(arr){
  const out=[];
  const index=new Map();
-
- // Identidade segura:
- // 1) ID é sempre único.
- // 2) Sem ID, EAN identifica o produto.
- // 3) SKU só identifica quando não existe EAN.
- // 4) Nome NUNCA é usado para juntar produtos, pois produtos diferentes
- //    podem ter o mesmo nome (ex.: mesma descrição com EANs diferentes).
- const digits=v=>String(v??'').replace(/\D/g,'');
  const normKey=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
-
- const identityKeys=p=>{
+ const digits=v=>String(v??'').replace(/\D/g,'');
+ const keysOf=p=>{
    const keys=[];
-   const id=String(p?.id??'').trim();
-   const variantId=String(p?.variant_id??p?.variantId??'').trim();
-   const barcode=digits(p?.barcode??p?.ean??p?.gtin);
+   const id=p?.id??p?.variant_id??p?.variantId;
    const sku=String(p?.sku??'').trim();
+   const barcode=digits(p?.barcode??p?.ean??p?.gtin);
    const internal=String(p?.internalCode??p?.internal_code??'').trim();
-
-   if(id) return ['id:'+id];
-   if(variantId) return ['variant:'+variantId];
-   if(barcode) return ['ean:'+barcode];
-   if(sku) return ['sku:'+normKey(sku)];
-   if(internal) return ['internal:'+normKey(internal)];
-   return ['fallback:'+String(p?.name??'').trim().toLowerCase()+'|'+String(p?.price??'')];
+   const name=normKey(p?.name);
+   if(id!=null && String(id).trim()) keys.push('id:'+String(id).trim());
+   if(barcode) keys.push('ean:'+barcode);
+   if(sku) keys.push('sku:'+normKey(sku));
+   if(internal) keys.push('internal:'+normKey(internal));
+   if(name) keys.push('name:'+name);
+   return keys;
  };
-
  for(const p of (Array.isArray(arr)?arr:[])){
    if(!p || p.active===false || p.publishOnline===false || p.hideOnline===true) continue;
-
-   const keys=identityKeys(p);
-   const idx=index.get(keys[0]);
-
-   if(idx===undefined){
-     const newIdx=out.length;
+   const keys=keysOf(p);
+   let idx=-1;
+   for(const k of keys){
+     if(index.has(k)){ idx=index.get(k); break; }
+   }
+   if(idx<0){
+     idx=out.length;
      out.push({...p});
-     index.set(keys[0],newIdx);
    }else{
-     // Mesmo produto/registro: mantém o registro mais completo sem somar estoque.
+     // Mantém um único registro. O registro mais completo prevalece;
+     // estoque/preço do registro que já veio primeiro não é somado.
      const cur=out[idx];
      const merged={...cur,...p};
      for(const field of ['photo','stock','reserved','price','promo_price','promoPrice','brand','category']){
@@ -143,9 +106,9 @@ function dedupeCatalogProducts(arr){
      }
      out[idx]=merged;
    }
+   for(const k of keys) index.set(k,idx);
  }
-
- return out.map((p,i)=>({...p,_id:String(p.id??p.variant_id??p.variantId??p.sku??('catalog-'+i))}));
+ return out.map((p,i)=>({...p,_id:String(p.id??p.variant_id??p.variantId??p.sku??i)}));
 }
 
 function aplicarFotosLocais(){
@@ -161,8 +124,7 @@ function aplicarFotosLocais(){
   }
 }
 
-async function load(preserveScroll=false){
- const savedScroll=preserveScroll?window.scrollY:0;
+async function load(){
  try{
   const r=await fetch(API+'/api/online/catalog',{cache:'no-store'});
   if(!r.ok) throw Error('HTTP '+r.status);
@@ -170,24 +132,19 @@ async function load(preserveScroll=false){
   const rawProducts=Array.isArray(data)?data:(data.products||data.items||data.catalog||[]);
   products=dedupeCatalogProducts(rawProducts);
   aplicarFotosLocais();
-  renderCats();
-  render();
+  renderCats();render();
   document.getElementById('status').textContent=`${products.length} produto(s) no catálogo • atualização automática`;
-
-  if(preserveScroll){
-    requestAnimationFrame(()=>window.scrollTo({top:savedScroll,left:0,behavior:'auto'}));
-  }
  }catch(e){
+  // Falha momentânea: mantém o catálogo já carregado na tela.
+  // Só mostra erro se ainda não houver produtos carregados.
   if(!products.length){
     document.getElementById('status').textContent='Não foi possível conectar ao catálogo central. Verifique a API configurada.';
     document.getElementById('grid').innerHTML='<div class="empty" style="grid-column:1/-1">O catálogo está aguardando conexão com a central Encantada.</div>';
   }else{
     document.getElementById('status').textContent=`${products.length} produto(s) no catálogo • atualização automática`;
-    if(preserveScroll) requestAnimationFrame(()=>window.scrollTo({top:savedScroll,left:0,behavior:'auto'}));
   }
  } 
 }
-
 function getProductCategory(p){
  const value=p?.category??p?.categoria??p?.category_name??p?.categoria_nome??p?.categoryName??'';
  if(Array.isArray(value))return value.map(v=>String(v??'').trim()).filter(Boolean).join(', ');
@@ -215,20 +172,6 @@ function availability(p){
  if(n<=3)return ['POUCAS UNIDADES','few',true];
  return ['DISPONÍVEL','ok',true];
 }
-function validPrice(v){
- const n=Number(v);
- return Number.isFinite(n) && n>0 ? n : null;
-}
-function effectivePrice(p){
- const promo=validPrice(p.promo_price ?? p.promoPrice);
- const normal=validPrice(p.price);
- return promo ?? normal ?? 0;
-}
-function originalPrice(p){
- const promo=validPrice(p.promo_price ?? p.promoPrice);
- const normal=validPrice(p.price);
- return (promo!==null && normal!==null && normal>promo) ? normal : 0;
-}
 function render(){
  const q=norm(document.getElementById('search').value);
  const arr=products.filter(p=>{
@@ -236,16 +179,9 @@ function render(){
     const categoryOk=norm(category)==='todos'||norm(pcat)===norm(category);
     return categoryOk&&norm([p.name,p.brand,pcat].join(' ')).includes(q);
   });
-  // Disponíveis primeiro; esgotados/indisponíveis ficam no final.
-  // A ordem original é preservada dentro de cada grupo.
-  arr.sort((a,b)=>{
-   const aDisponivel=Math.max(0,Number(a.stock||0)-Number(a.reserved||0))>0;
-   const bDisponivel=Math.max(0,Number(b.stock||0)-Number(b.reserved||0))>0;
-   return Number(bDisponivel)-Number(aDisponivel);
-  });
  document.getElementById('grid').innerHTML=arr.length?arr.map(p=>{
-  const [label,cl,can]=availability(p), price=effectivePrice(p);
-  const old=originalPrice(p);
+  const [label,cl,can]=availability(p), price=Number(p.promo_price||p.promoPrice||p.price||0);
+  const old=p.promo_price?Number(p.price||0):0;
   return `<article class="card"><div class="photo">${p.photo?`<img src="${esc(p.photo)}" alt="${esc(p.name)}" loading="lazy">`:'<div class="noimg">Encantada</div>'}</div><div class="info"><div class="brand">${esc(p.brand||'')}</div><div class="name">${esc(p.name||'Produto')}</div><div>${old>price?`<span class="promo">${money(old)}</span>`:''}<span class="price">${money(price)}</span></div><div class="avail ${cl}">${label}</div><button class="add" ${can?'':'disabled'} onclick="add('${esc(p._id)}')">${can?'Reservar':'Indisponível'}</button></div></article>`
  }).join(''):'<div class="empty" style="grid-column:1/-1">Nenhum produto encontrado.</div>';
 }
@@ -254,25 +190,24 @@ function add(id){const p=find(id);if(!p)return;const available=Math.max(0,Number
 function change(id,d){const p=find(id),max=Math.max(0,Number(p?.stock||0)-Number(p?.reserved||0));cart[id]=Math.max(0,Math.min((cart[id]||0)+d,max));if(!cart[id])delete cart[id];updateCart()}
 function updateCart(){
  const entries=Object.entries(cart).map(([id,q])=>[find(id),q]).filter(x=>x[0]);
- const count=entries.reduce((s,[,q])=>s+q,0), total=entries.reduce((s,[p,q])=>s+q*effectivePrice(p),0);
+ const count=entries.reduce((s,[,q])=>s+q,0), total=entries.reduce((s,[p,q])=>s+q*Number(p.promo_price||p.promoPrice||p.price||0),0);
  document.getElementById('count').textContent=count;document.getElementById('total').textContent=money(total);
- document.getElementById('list').innerHTML=entries.length?entries.map(([p,q])=>`<div class="line"><div><b>${esc(p.name)}</b><br><small>${money(effectivePrice(p))} cada</small><br><button class="remove" onclick="delete cart['${esc(p._id)}'];updateCart()">remover</button></div><div class="qty"><button onclick="change('${esc(p._id)}',-1)">−</button><b>${q}</b><button onclick="change('${esc(p._id)}',1)">+</button></div></div>`).join(''):'<div class="empty">Sua lista está vazia.</div>';
+ document.getElementById('list').innerHTML=entries.length?entries.map(([p,q])=>`<div class="line"><div><b>${esc(p.name)}</b><br><small>${money(p.promo_price||p.promoPrice||p.price||0)} cada</small><br><button class="remove" onclick="delete cart['${esc(p._id)}'];updateCart()">remover</button></div><div class="qty"><button onclick="change('${esc(p._id)}',-1)">−</button><b>${q}</b><button onclick="change('${esc(p._id)}',1)">+</button></div></div>`).join(''):'<div class="empty">Sua lista está vazia.</div>';
  atualizarBotaoReserva();
 }
 function openCart(){document.getElementById('overlay').classList.add('open');updateCart()}
 function closeCart(){document.getElementById('overlay').classList.remove('open')}
 function buildMessage(prefix){
- const name=getCustomerProfile()?.name||'Cliente';
+ const name=document.getElementById('customer').value.trim()||'Cliente';
  const entries=Object.entries(cart).map(([id,q])=>[find(id),q]).filter(x=>x[0]);
  if(!entries.length){alert('Adicione pelo menos um produto à lista.');return null}
  const lines=entries.map(([p,q])=>`• ${q}x ${p.name} — ${money((p.promo_price||p.promoPrice||p.price||0)*q)}`);
- const total=entries.reduce((s,[p,q])=>s+q*effectivePrice(p),0);
+ const total=entries.reduce((s,[p,q])=>s+q*Number(p.promo_price||p.promoPrice||p.price||0),0);
  return `${prefix}\n\nOlá, sou ${name}.\n\n${lines.join('\n')}\n\nTotal estimado: ${money(total)}`;
 }
 function dadosReservaValidos(){
- const profile=getCustomerProfile();
- const name=profile?.name||'';
- const phone=profile?.phone||'';
+ const name=document.getElementById('customer').value.trim();
+ const phone=document.getElementById('phone').value.replace(/\D/g,'');
  return name.length>=3 && /^[1-9]{2}9[0-9]{8}$/.test(phone);
 }
 function atualizarBotaoReserva(){
@@ -284,19 +219,18 @@ function atualizarBotaoReserva(){
  btn.style.cursor=ok?'pointer':'not-allowed';
 }
 async function requestReservation(){
- const profile=getCustomerProfile();
- const name=profile?.name||'';
- const phone=profile?.phone||'';
+ const name=document.getElementById('customer').value.trim();
+ const phone=document.getElementById('phone').value.replace(/\D/g,'');
  const entries=Object.entries(cart).map(([id,q])=>[find(id),q]).filter(x=>x[0]);
  if(!entries.length){alert('Adicione pelo menos um produto à lista.');return}
  if(name.length<3){alert('Digite seu nome com pelo menos 3 caracteres.');document.getElementById('customer').focus();return}
- if(!validCatalogWhatsApp(phone)){alert('Digite um WhatsApp válido com DDD e 11 números. Exemplo: 11987654321.');document.getElementById('phone').focus();return}
+ if(!/^[1-9]{2}9[0-9]{8}$/.test(phone)){alert('Digite um WhatsApp válido com DDD e 11 números. Exemplo: 11987654321.');document.getElementById('phone').focus();return}
  const items=entries.map(([p,q])=>({variant_id:String(p.variant_id||p.id),qty:q}));
  if(items.some(i=>!i.variant_id||i.variant_id==='undefined')){alert('Não foi possível identificar um dos produtos. Atualize o catálogo e tente novamente.');return}
  const btn=document.querySelector('.reserve');
  btn.disabled=true;btn.textContent='Enviando solicitação...';
  try{
-  const r=await fetch(API+'/api/online/reservations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({customer:{name,phone,marketing_consent:profile?.marketingConsent==='yes'},items,fulfillment_type:'pickup',idempotency_key:'cat-'+Date.now()+'-'+Math.random().toString(36).slice(2,10)})});
+  const r=await fetch(API+'/api/online/reservations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({customer:{name,phone},items,fulfillment_type:'pickup',idempotency_key:'cat-'+Date.now()+'-'+Math.random().toString(36).slice(2,10)})});
   const data=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error(data.error||'Não foi possível enviar a solicitação.');
   cart={};updateCart();
@@ -306,76 +240,84 @@ async function requestReservation(){
  }catch(e){alert(e.message||'Não foi possível enviar a solicitação. Verifique sua conexão e tente novamente.')}
  finally{btn.textContent='Solicitar reserva'; atualizarBotaoReserva()}
 }
-function getCustomerProfile(){
-  // Primeiro usa o perfil da sessão; isso mantém os dados mesmo quando
-  // o navegador bloquear/limitar o localStorage (ex.: arquivo local).
-  if(customerProfile&&customerProfile.name&&customerProfile.phone)return customerProfile;
-  try{
-    const raw=localStorage.getItem(CUSTOMER_KEY);
-    if(!raw)return null;
-    const x=JSON.parse(raw);
-    if(x&&x.name&&x.phone){customerProfile=x;return x;}
-  }catch(e){}
-  return null;
-}
-function saveCustomerProfile(profile){
-  customerProfile={name:String(profile.name).trim(),phone:String(profile.phone).replace(/\D/g,''),marketingConsent:profile.marketingConsent==='yes'?'yes':'no',createdAt:profile.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
-  try{localStorage.setItem(CUSTOMER_KEY,JSON.stringify(customerProfile));}catch(e){console.warn('Não foi possível gravar no armazenamento local; mantendo os dados nesta sessão.',e);}
-  return customerProfile;
-}
-function updateCustomerSummary(){
-  const el=document.getElementById('customerSummary'); if(!el)return;
-  const p=getCustomerProfile();
-  el.innerHTML=p?`<strong>${esc(p.name)}</strong><br><span>WhatsApp: ${esc(p.phone)}</span>`:'Dados do cliente não informados';
-}
-function openCustomerGate(force=false){
-  const saved=getCustomerProfile();
-  if(saved&&!force){customerProfile=saved;updateCustomerSummary();return;}
-  const gate=document.getElementById('customerGate'); gate.style.display='flex';
-  const n=document.getElementById('gateName'), ph=document.getElementById('gatePhone');
-  if(saved){n.value=saved.name;ph.value=saved.phone;marketingConsent=saved.marketingConsent||'yes';}
-  setConsent(marketingConsent); setTimeout(()=>n.focus(),50);
-}
-function setConsent(v){
-  marketingConsent=v==='no'?'no':'yes';
-  document.getElementById('consentYes').classList.toggle('active',marketingConsent==='yes');
-  document.getElementById('consentNo').classList.toggle('active',marketingConsent==='no');
-}
-function submitCustomerGate(){
-  const name=document.getElementById('gateName').value.trim();
-  const phone=document.getElementById('gatePhone').value.replace(/\D/g,'');
-  const err=document.getElementById('gateError');
-  err.textContent='';
-  if(name.length<3){err.textContent='Digite seu nome com pelo menos 3 caracteres.';return;}
-  if(!validCatalogWhatsApp(phone)){err.textContent='Digite um WhatsApp válido com DDD e 11 números. Exemplo: 11987654321.';return;}
-  saveCustomerProfile({name,phone,marketingConsent});
-  document.getElementById('customerGate').style.display='none';
-  updateCustomerSummary(); atualizarBotaoReserva();
-  // Garante que, ao concluir o cadastro, o catálogo seja carregado mesmo se a primeira tentativa ocorreu antes da entrada.
-  if(!products.length) load(false);
-}
-function getStoredCustomerForReservation(){return getCustomerProfile();}
+const customerInput=document.getElementById('customer');
+const phoneInput=document.getElementById('phone');
+
 function dadosReservaValidos(){
-  const p=getStoredCustomerForReservation();
-  return !!p && p.name.length>=3 && validCatalogWhatsApp(p.phone);
-}
-function atualizarBotaoReserva(){
-  const btn=document.querySelector('.reserve'); if(!btn)return;
-  const ok=dadosReservaValidos() && Object.keys(cart).length>0;
-  btn.disabled=!ok; btn.style.opacity=ok?'1':'0.55'; btn.style.cursor=ok?'pointer':'not-allowed';
+  const nome=(customerInput?.value||'').trim();
+  const telefone=(phoneInput?.value||'').replace(/\D/g,'');
+  return nome.length>=3 && /^[1-9]{2}9[0-9]{8}$/.test(telefone);
 }
 
-document.getElementById('consentYes').addEventListener('click',()=>setConsent('yes'));
-document.getElementById('consentNo').addEventListener('click',()=>setConsent('no'));
-document.getElementById('changeCustomer').addEventListener('click',()=>openCustomerGate(true));
-document.getElementById('gatePhone').addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'').slice(0,11); document.getElementById('gateError').textContent='';});
-document.getElementById('gateName').addEventListener('input',()=>{document.getElementById('gateError').textContent='';});
-openCustomerGate(false);
+function atualizarBotaoReserva(){
+  const btn=document.querySelector('.reserve');
+  if(!btn)return;
+  const ok=dadosReservaValidos() && Object.keys(cart).length>0;
+  btn.disabled=!ok;
+  btn.style.opacity=ok?'1':'0.55';
+  btn.style.cursor=ok?'pointer':'not-allowed';
+
+  let aviso=document.getElementById('reserva-validacao');
+  if(!aviso){
+    aviso=document.createElement('div');
+    aviso.id='reserva-validacao';
+    aviso.style.cssText='font-size:14px;margin:8px 0 12px;font-weight:600;line-height:1.4;';
+    const parent=btn.parentElement;
+    if(parent) parent.insertBefore(aviso,btn);
+  }
+
+  const nome=(customerInput?.value||'').trim();
+  const telefone=(phoneInput?.value||'').replace(/\D/g,'');
+  if(!nome){
+    aviso.textContent='Informe seu nome (mínimo de 3 caracteres).';
+    aviso.style.color='#a05a00';
+  }else if(nome.length<3){
+    aviso.textContent='O nome precisa ter pelo menos 3 caracteres.';
+    aviso.style.color='#a05a00';
+  }else if(!telefone){
+    aviso.textContent='Informe seu WhatsApp com DDD e 11 números. Exemplo: 11987654321.';
+    aviso.style.color='#a05a00';
+  }else if(!/^[1-9]{2}9[0-9]{8}$/.test(telefone)){
+    aviso.textContent='WhatsApp inválido. Digite DDD + 9 + 8 números. Exemplo: 11987654321.';
+    aviso.style.color='#a05a00';
+  }else if(!Object.keys(cart).length){
+    aviso.textContent='Adicione pelo menos um produto à lista.';
+    aviso.style.color='#a05a00';
+  }else{
+    aviso.textContent='Dados válidos. Você pode solicitar a reserva.';
+    aviso.style.color='#2f7d32';
+  }
+}
+
+function validarCamposReserva(event){
+  if(event) event.preventDefault();
+  const nome=(customerInput?.value||'').trim();
+  const telefone=(phoneInput?.value||'').replace(/\D/g,'');
+  if(nome.length<3){
+    atualizarBotaoReserva();
+    customerInput?.focus();
+    return false;
+  }
+  if(!/^[1-9]{2}9[0-9]{8}$/.test(telefone)){
+    atualizarBotaoReserva();
+    phoneInput?.focus();
+    return false;
+  }
+  return requestReservation();
+}
+
+if(customerInput)customerInput.addEventListener('input',atualizarBotaoReserva);
+if(phoneInput){
+  phoneInput.addEventListener('input',()=>{
+    phoneInput.value=phoneInput.value.replace(/\D/g,'').slice(0,11);
+    atualizarBotaoReserva();
+  });
+}
 
 const reserveBtn=document.querySelector('.reserve');
 if(reserveBtn){
   reserveBtn.removeAttribute('onclick');
-  reserveBtn.addEventListener('click',requestReservation);
+  reserveBtn.addEventListener('click',validarCamposReserva);
 }
 
 document.getElementById('search').addEventListener('input',render);
@@ -383,9 +325,9 @@ let carregandoCatalogo=false;
 async function atualizarCatalogoSilencioso(){
   if(carregandoCatalogo)return;
   carregandoCatalogo=true;
-  try{ await load(true); } finally { carregandoCatalogo=false; }
+  try{ await load(); } finally { carregandoCatalogo=false; }
 }
-load(); atualizarBotaoReserva(); setInterval(()=>atualizarCatalogoSilencioso(true),60000);window.addEventListener('online',()=>atualizarCatalogoSilencioso(true));
+load(); atualizarBotaoReserva(); setInterval(atualizarCatalogoSilencioso,30000);window.addEventListener('online',atualizarCatalogoSilencioso);
 </script>
 </body></html>
 ```

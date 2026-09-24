@@ -25,7 +25,7 @@ const pool={
     await client.connect();
     return {
       query:(...args)=>client.query(...args),
-      release:async()=>{await client.end().catch(()=>{});}
+      release:async()=>{}
     };
   }
 };
@@ -65,7 +65,8 @@ function nextSunday(orderDate=new Date(), cutoffHour=16){ const d=new Date(order
 
 // PDV bridge: local V53/V54 products are upserted into the central database.
 const pdvProductSchema=z.object({id:z.string().uuid(),name:z.string().min(1),sku:z.string().nullable().optional(),internalCode:z.string().nullable().optional(),barcode:z.string().nullable().optional(),brand:z.string().nullable().optional(),category:z.string().nullable().optional(),subcategory:z.string().nullable().optional(),description:z.string().nullable().optional(),price:z.coerce.number().nonnegative(),promoPrice:z.coerce.number().nullable().optional(),stock:z.coerce.number().int().nonnegative().default(0),publishOnline:z.boolean().optional(),physicalOnly:z.boolean().optional(),hideOnline:z.boolean().optional(),featured:z.boolean().optional(),bestSeller:z.boolean().optional(),isNew:z.boolean().optional(),onPromotion:z.boolean().optional(),active:z.boolean().optional(),photo:z.string().nullable().optional()});
-app.put('/api/pdv/products/:id',async(req,res)=>{const x=pdvProductSchema.parse({...req.body,id:req.params.id});const online_status=x.publishOnline&&!x.hideOnline&&!x.physicalOnly?'published':(x.hideOnline?'hidden':'physical_only');const c=await pool.connect();try{await c.query('BEGIN');const {rows:[p]}=await c.query(`INSERT INTO products(id,name,sku,internal_code,barcode,brand,category,subcategory,description,price,promo_price,photo,online_status,featured,bestseller,launch,promotion,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,sku=EXCLUDED.sku,internal_code=EXCLUDED.internal_code,barcode=EXCLUDED.barcode,brand=EXCLUDED.brand,category=EXCLUDED.category,subcategory=EXCLUDED.subcategory,description=EXCLUDED.description,price=EXCLUDED.price,promo_price=EXCLUDED.promo_price,photo=EXCLUDED.photo,online_status=EXCLUDED.online_status,featured=EXCLUDED.featured,bestseller=EXCLUDED.bestseller,launch=EXCLUDED.launch,promotion=EXCLUDED.promotion,status=EXCLUDED.status,updated_at=now() RETURNING *`,[x.id,x.name,x.sku||null,x.internalCode||null,x.barcode||null,x.brand||null,x.category||null,x.subcategory||null,x.description||null,x.price,x.promoPrice??null,x.photo??null,online_status,!!x.featured,!!x.bestSeller,!!x.isNew,!!x.onPromotion,x.active===false?'inactive':'active']);
+app.put('/api/pdv/products/:id',async(req,res)=>{const x=pdvProductSchema.parse({...req.body,id:req.params.id});const online_status=x.publishOnline&&!x.hideOnline&&!x.physicalOnly?'published':(x.hideOnline?'hidden':'physical_only');const c=await pool.connect();try{await c.query('BEGIN');const {rows:[p]}=await c.query(`INSERT INTO products(id,name,sku,internal_code,barcode,brand,category,subcategory,description,price,promo_price,photo,online_status,featured,bestseller,launch,promotion,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,sku=EXCLUDED.sku,internal_code=EXCLUDED.internal_code,barcode=EXCLUDED.barcode,brand=EXCLUDED.brand,category=EXCLUDED.category,subcategory=EXCLUDED.subcategory,description=EXCLUDED.description,price=EXCLUDED.price,promo_price=EXCLUDED.promo_price,photo=EXCLUDED.photo,online_status=CASE WHEN products.online_status='published' AND EXCLUDED.online_status='physical_only' THEN products.online_status ELSE EXCLUDED.online_status END,featured=EXCLUDED.featured,bestseller=EXCLUDED.bestseller,launch=EXCLUDED.launch,p
+romotion=EXCLUDED.promotion,status=EXCLUDED.status,updated_at=now() RETURNING *`,[x.id,x.name,x.sku||null,x.internalCode||null,x.barcode||null,x.brand||null,x.category||null,x.subcategory||null,x.description||null,x.price,x.promoPrice??null,x.photo??null,online_status,!!x.featured,!!x.bestSeller,!!x.isNew,!!x.onPromotion,x.active===false?'inactive':'active']);
 await c.query(`INSERT INTO product_variants(product_id,name,attributes,sku,barcode,stock) VALUES($1,'Unidade','{}'::jsonb,$2,$3,$4) ON CONFLICT(product_id,name) DO UPDATE SET stock=EXCLUDED.stock,sku=EXCLUDED.sku,barcode=EXCLUDED.barcode`,[x.id,x.sku||null,x.barcode||null,x.stock]);
 await log(c,'product',x.id,'pdv-central','ok','upsert');await c.query('COMMIT');res.json(p)}catch(e){await c.query('ROLLBACK');res.status(400).json({error:e.message})}finally{c.release()}});
 let gtinToken = null;
@@ -227,7 +228,7 @@ app.post('/api/pdv/sync',async(req,res)=>{
            name=EXCLUDED.name,sku=EXCLUDED.sku,internal_code=EXCLUDED.internal_code,barcode=EXCLUDED.barcode,brand=EXCLUDED.brand,
            category=EXCLUDED.category,subcategory=EXCLUDED.subcategory,description=EXCLUDED.description,
            price=EXCLUDED.price,promo_price=EXCLUDED.promo_price,photo=EXCLUDED.photo,
-           online_status=EXCLUDED.online_status,featured=EXCLUDED.featured,bestseller=EXCLUDED.bestseller,
+           online_status=CASE WHEN products.online_status='published' AND EXCLUDED.online_status='physical_only' THEN products.online_status ELSE EXCLUDED.online_status END,featured=EXCLUDED.featured=EXCLUDED.featured,bestseller=EXCLUDED.bestseller,
            launch=EXCLUDED.launch,promotion=EXCLUDED.promotion,status=EXCLUDED.status,updated_at=now()`,
           [productId,p.name,safeSku,p.internalCode||null,p.barcode||null,p.brand||null,p.category||null,p.subcategory||null,
            p.description||null,p.price,p.promoPrice??null,p.photo??null,
@@ -512,7 +513,7 @@ app.post('/api/orders/:id/release',async(req,res)=>{const c=await pool.connect()
 // Production integration layer: payment webhooks, reservation expiry, orders and customers.
 const requireRole=(roles=[])=>(req,res,next)=>{const h=req.headers.authorization||'';const token=h.startsWith('Bearer ')?h.slice(7):null;if(!token)return res.status(401).json({error:'Não autenticado'});try{req.user=jwt.verify(token,SECRET);if(roles.length&&!roles.includes(req.user.role))return res.status(403).json({error:'Sem permissão'});next()}catch(e){res.status(401).json({error:'Token inválido'})}};
 async function releaseExpiredReservations(){const c=await pool.connect();try{await c.query('BEGIN');const {rows}=await c.query("SELECT * FROM stock_reservations WHERE status='active' AND expires_at<=now() FOR UPDATE");for(const r of rows){await c.query('UPDATE product_variants SET reserved=GREATEST(0,reserved-$1) WHERE id=$2',[r.qty,r.variant_id]);await c.query("UPDATE stock_reservations SET status='expired' WHERE id=$1",[r.id]);await c.query("UPDATE orders SET status='cancelled',updated_at=now() WHERE id=$1 AND payment_status='pending'",[r.order_id]);}await c.query('COMMIT');return rows.length}catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}}
-setInterval(()=>releaseExpiredReservations().catch(console.error),60000); setTimeout(()=>releaseExpiredReservations().catch(console.error),5000);
+
 app.get('/api/orders',requireRole(['Administrador','Funcionário']),async(req,res)=>{const {rows}=await pool.query(`SELECT o.*,c.name customer_name,c.phone customer_phone,COALESCE(json_agg(json_build_object('name',i.product_name,'variant',i.variant_name,'qty',i.qty,'unit_price',i.unit_price)) FILTER (WHERE i.id IS NOT NULL),'[]') items FROM orders o LEFT JOIN customers c ON c.id=o.customer_id LEFT JOIN order_items i ON i.order_id=o.id GROUP BY o.id,c.name,c.phone ORDER BY o.created_at DESC LIMIT 500`);res.json(rows)});
 app.get('/api/orders/deliveries/sunday',requireRole(['Administrador','Funcionário']),async(req,res)=>{const {rows}=await pool.query(`SELECT o.*,c.name customer_name,c.phone customer_phone FROM orders o LEFT JOIN customers c ON c.id=o.customer_id WHERE o.fulfillment_type='francisco_morato_delivery' ORDER BY o.delivery_date,o.delivery_time,o.created_at`);res.json(rows)});
 app.patch('/api/orders/:id/status',requireRole(['Administrador','Funcionário']),async(req,res)=>{const x=z.object({status:z.enum(['received','payment_confirmed','preparing','ready','scheduled_delivery','out_for_delivery','delivered','cancelled'])}).parse(req.body);const {rows:[o]}=await pool.query('UPDATE orders SET status=$1,updated_at=now() WHERE id=$2 RETURNING *',[x.status,req.params.id]);if(!o)return res.status(404).json({error:'Pedido não encontrado'});res.json(o)});
@@ -638,6 +639,7 @@ app.post('/api/payments/mercadopago/webhook',async(req,res)=>{
     return res.status(500).json({error:e.message});
   }
 });
+
 
 
 

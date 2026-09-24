@@ -440,54 +440,53 @@ app.post('/api/pdv/reservations/:id/reject',async(req,res)=>{
 });
 
 app.get('/api/online/catalog',async(req,res)=>{
-  const client=makeClient();
+  const run=async()=>{
+    const client=makeClient();
+    try{
+      await client.connect();
+      return await client.query(`
+        SELECT
+          p.*,
+          v.id AS variant_id,
+          v.name AS variant_name,
+          COALESCE(v.stock,0) AS stock,
+          COALESCE(v.reserved,0) AS reserved,
+          COALESCE(v.price_delta,0) AS price_delta
+        FROM products p
+        LEFT JOIN (
+          SELECT DISTINCT ON (product_id)
+            product_id,id,name,stock,reserved,price_delta
+          FROM product_variants
+          ORDER BY product_id, CASE WHEN name='Unidade' THEN 0 ELSE 1 END, id
+        ) v ON v.product_id=p.id
+        WHERE p.status='active'
+          AND p.online_status='published'
+        ORDER BY p.updated_at DESC
+      `);
+    }finally{
+      await client.end().catch(()=>{});
+    }
+  };
+
   try{
-    await client.connect();
-    const {rows}=await client.query(`
-      SELECT
-        p.id,
-        p.sku,
-        p.internal_code,
-        p.barcode,
-        p.name,
-        p.brand,
-        p.category,
-        p.subcategory,
-        p.description,
-        p.price,
-        p.promo_price,
-        p.photo,
-        p.online_status,
-        p.featured,
-        p.bestseller,
-        p.launch,
-        p.promotion,
-        p.status,
-        v.id AS variant_id,
-        v.name AS variant_name,
-        COALESCE(v.stock,0) AS stock,
-        COALESCE(v.reserved,0) AS reserved,
-        COALESCE(v.price_delta,0) AS price_delta
-      FROM products p
-      LEFT JOIN (
-        SELECT DISTINCT ON (product_id)
-          product_id,id,name,stock,reserved,price_delta
-        FROM product_variants
-        ORDER BY product_id, CASE WHEN name='Unidade' THEN 0 ELSE 1 END, id
-      ) v ON v.product_id=p.id
-      WHERE p.status='active'
-        AND p.online_status='published'
-      ORDER BY p.updated_at DESC
-    `);
+    let result;
+    try{
+      result=await run();
+    }catch(firstError){
+      const msg=String(firstError?.message||firstError);
+      console.warn('ONLINE CATALOG RETRY:',msg);
+      if(!/connection terminated unexpectedly|connection reset|ECONNRESET|Connection terminated/i.test(msg)) throw firstError;
+      result=await run();
+    }
+
     res.set('Cache-Control','no-store');
-    res.json(rows);
+    res.json(result.rows);
   }catch(e){
     console.error('ONLINE CATALOG ERROR:',e);
     res.status(503).json({ok:false,error:e.message});
-  }finally{
-    await client.end().catch(()=>{});
   }
 });
+
 
 app.get('/health',(_req,res)=>res.json({ok:true,service:'encantada-api'}));
 app.get('/api/ready',async(_req,res)=>{

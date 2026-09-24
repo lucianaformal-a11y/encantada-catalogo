@@ -227,7 +227,7 @@ app.post('/api/pdv/sync',async(req,res)=>{
            name=EXCLUDED.name,sku=EXCLUDED.sku,internal_code=EXCLUDED.internal_code,barcode=EXCLUDED.barcode,brand=EXCLUDED.brand,
            category=EXCLUDED.category,subcategory=EXCLUDED.subcategory,description=EXCLUDED.description,
            price=EXCLUDED.price,promo_price=EXCLUDED.promo_price,photo=EXCLUDED.photo,
-           online_status=CASE WHEN products.online_status='published' AND EXCLUDED.online_status='physical_only' THEN products.online_status ELSE EXCLUDED.online_status END,featured=EXCLUDED.featured=EXCLUDED.featured,bestseller=EXCLUDED.bestseller,
+           online_status=CASE WHEN products.online_status='published' AND EXCLUDED.online_status='physical_only' THEN products.online_status ELSE EXCLUDED.online_status END,featured=EXCLUDED.featured,bestseller=EXCLUDED.bestseller,
            launch=EXCLUDED.launch,promotion=EXCLUDED.promotion,status=EXCLUDED.status,updated_at=now()`,
           [productId,p.name,safeSku,p.internalCode||null,p.barcode||null,p.brand||null,p.category||null,p.subcategory||null,
            p.description||null,p.price,p.promoPrice??null,p.photo??null,

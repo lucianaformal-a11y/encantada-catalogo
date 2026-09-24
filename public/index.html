@@ -55,7 +55,7 @@ main{padding:26px 0 90px}.intro{display:flex;align-items:end;gap:15px;margin-bot
 </div>
 
 <script>
-const API=localStorage.getItem('encantada_api_url')||'http://localhost:3000';
+const API='https://encantada-catalogo.luciana-formal.workers.dev';
 let products=[], cart={}, category='Todos';
 
 const money=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(v)||0);
@@ -79,68 +79,26 @@ function aplicarFotosLocais(){
 }
 
 let __catalogLoading=false;
-let __catalogController=null;
-let __catalogRequestId=0;
-const CATALOG_TIMEOUT_MS=20000;
-
-function mostrarDiagnosticoCatalogo(info){
- const id='catalog-diagnostic';
- let box=document.getElementById(id);
- if(!box){
-  box=document.createElement('pre');
-  box.id=id;
-  box.style.cssText='display:none;margin:12px 0;padding:12px;border-radius:10px;background:#fff0f2;border:1px solid #e6aab4;color:#6b1f2e;white-space:pre-wrap;font:12px/1.45 monospace;';
-  const status=document.getElementById('status');
-  status?.parentElement?.insertBefore(box,status.nextSibling);
- }
- box.textContent='DIAGNÓSTICO DO CATÁLOGO\n'+JSON.stringify(info,null,2);
- box.style.display='block';
-}
-
 async function load(){
  if(__catalogLoading)return;
  __catalogLoading=true;
- const requestId=++__catalogRequestId;
- const started=performance.now();
- if(__catalogController){try{__catalogController.abort()}catch(e){}}
- const controller=new AbortController();
- __catalogController=controller;
- const timer=setTimeout(()=>controller.abort('timeout'),CATALOG_TIMEOUT_MS);
  try{
-  const r=await fetch(API+'/api/online/catalog',{cache:'no-store',signal:controller.signal});
-  const elapsed=Math.round(performance.now()-started);
-  if(!r.ok){
-   let body='';
-   try{body=(await r.text()).slice(0,2000)}catch(e){}
-   throw new Error(`HTTP ${r.status}${body?' — '+body:''}`);
-  }
+  const r=await fetch(API+'/api/online/catalog',{cache:'no-store'});
+  if(!r.ok) throw Error('HTTP '+r.status);
   const data=await r.json();
   products=Array.isArray(data)?data:(data.products||data.items||data.catalog||[]);
   products=products.map((p,i)=>({...p,_id:String(p.id??p.variant_id??p.sku??i)}));
   aplicarFotosLocais();
   renderCats();render();
   document.getElementById('status').textContent=`${products.length} produto(s) no catálogo • atualização automática`;
-  const box=document.getElementById('catalog-diagnostic');
-  if(box)box.style.display='none';
-  console.info('[Encantada] Catálogo carregado', {requestId,elapsedMs:elapsed,products:products.length});
  }catch(e){
-  const elapsed=Math.round(performance.now()-started);
-  const timeout=controller.signal.aborted;
-  const info={requestId,elapsedMs:elapsed,timeout,url:API+'/api/online/catalog',errorName:e?.name||null,errorMessage:e?.message||String(e)};
-  console.error('[Encantada] Falha ao carregar catálogo',info,e);
-  mostrarDiagnosticoCatalogo(info);
-  if(Array.isArray(products)&&products.length){
-   document.getElementById('status').textContent=`${products.length} produto(s) no catálogo • atualização automática (falha na atualização)`;
-  }else{
-   document.getElementById('status').textContent='Não foi possível carregar o catálogo. Veja o diagnóstico abaixo.';
-   document.getElementById('grid').innerHTML='<div class="empty" style="grid-column:1/-1">O catálogo não conseguiu carregar. O diagnóstico abaixo mostra o erro exato.</div>';
+  // Se o catálogo já carregou, mantenha os produtos visíveis durante uma falha temporária.
+  if(!Array.isArray(products)||products.length===0){
+    document.getElementById('status').textContent='Não foi possível conectar ao catálogo central. Verifique a API configurada.';
+    document.getElementById('grid').innerHTML='<div class="empty" style="grid-column:1/-1">O catálogo está aguardando conexão com a central Encantada.</div>';
   }
  }finally{
-  clearTimeout(timer);
-  if(requestId===__catalogRequestId){
-   __catalogLoading=false;
-   __catalogController=null;
-  }
+  __catalogLoading=false;
  }
 }
 function getProductCategory(p){
@@ -319,6 +277,6 @@ if(reserveBtn){
 }
 
 document.getElementById('search').addEventListener('input',render);
-load(); atualizarBotaoReserva(); setInterval(load,300000);window.addEventListener('online',load);
+load(); atualizarBotaoReserva(); setInterval(load,30000);window.addEventListener('online',load);
 </script>
 </body></html>

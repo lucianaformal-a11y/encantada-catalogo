@@ -16,20 +16,19 @@ const pool={
     try{
       await client.connect();
       return await client.query(...args);
-    }finally{
-      await client.end().catch(()=>{});
-    }
+ }finally{
+  await client.end().catch(()=>{});
+}
   },
   async connect(){
     const client=makeClient();
     await client.connect();
     return {
       query:(...args)=>client.query(...args),
-      release:async()=>{}
+release:async()=>{await client.end().catch(()=>{});}
     };
   }
 };
-
 // Pacote de fotos do PDV: usado como fallback para o catálogo quando uma foto
 // ainda não foi gravada no PostgreSQL. O PDV continua sendo a fonte principal.
 let catalogPhotoEntries=[];
@@ -50,7 +49,7 @@ for(const x of catalogPhotoEntries){
 
 app.disable('x-powered-by');
 app.use(helmet({crossOriginResourcePolicy:false,contentSecurityPolicy:{directives:{scriptSrc:["'self'","'unsafe-inline'"],scriptSrcAttr:["'unsafe-inline'"]}}}));
-const configuredCorsOrigins=[...(process.env.CORS_ORIGIN?.split(',').map(v=>v.trim()).filter(Boolean)||[]), ...(process.env.PUBLIC_URL?[process.env.PUBLIC_URL.trim()]:[])];
+const configuredCorsOrigins=['https://encantada-catalogo.luciana-formal.workers.dev',...(process.env.CORS_ORIGIN?.split(',').map(v=>v.trim()).filter(Boolean)||[]),...(process.env.PUBLIC_URL?[process.env.PUBLIC_URL.trim()]:[])];
 const isLocalCorsOrigin=origin=>!origin||origin==='null'||/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 app.use(cors({origin:(origin,callback)=>{if(isLocalCorsOrigin(origin)||configuredCorsOrigins.includes(origin))return callback(null,true);return callback(new Error('CORS não permitido para esta origem'));},credentials:true}));
 app.use(express.json({limit:'25mb'}));
@@ -469,8 +468,8 @@ app.get('/api/online/catalog',async(req,res)=>{
     console.error('ONLINE CATALOG ERROR:',e);
     res.status(503).json({ok:false,error:e.message});
   }finally{
-    await client.end().catch(()=>{});
-  }
+  await client.end().catch(()=>{});
+}
 });
 
 app.get('/health',(_req,res)=>res.json({ok:true,service:'encantada-api'}));
@@ -483,9 +482,9 @@ app.get('/api/ready',async(_req,res)=>{
   }catch(e){
     console.error('DATABASE READY ERROR:',e);
     res.status(503).json({ok:false,database:false,error:e.message});
-  }finally{
-    await client.end().catch(()=>{});
-  }
+ }finally{
+  await client.end().catch(()=>{});
+}
 });
 
 app.get('/api/catalog-test',async(_req,res)=>{

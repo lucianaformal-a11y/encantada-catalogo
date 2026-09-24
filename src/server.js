@@ -227,7 +227,7 @@ app.post('/api/pdv/sync',async(req,res)=>{
            name=EXCLUDED.name,sku=EXCLUDED.sku,internal_code=EXCLUDED.internal_code,barcode=EXCLUDED.barcode,brand=EXCLUDED.brand,
            category=EXCLUDED.category,subcategory=EXCLUDED.subcategory,description=EXCLUDED.description,
            price=EXCLUDED.price,promo_price=EXCLUDED.promo_price,photo=EXCLUDED.photo,
-           online_status=CASE WHEN products.online_status='published' AND EXCLUDED.online_status='physical_only' THEN products.online_status ELSE EXCLUDED.online_status END,featured=EXCLUDED.featured,bestseller=EXCLUDED.bestseller,
+           online_status=CASE WHEN products.online_status='published' AND EXCLUDED.online_status='physical_only' THEN products.online_status ELSE EXCLUDED.online_status END,featured=EXCLUDED.featured=EXCLUDED.featured,bestseller=EXCLUDED.bestseller,
            launch=EXCLUDED.launch,promotion=EXCLUDED.promotion,status=EXCLUDED.status,updated_at=now()`,
           [productId,p.name,safeSku,p.internalCode||null,p.barcode||null,p.brand||null,p.category||null,p.subcategory||null,
            p.description||null,p.price,p.promoPrice??null,p.photo??null,
@@ -445,7 +445,24 @@ app.get('/api/online/catalog',async(req,res)=>{
     await client.connect();
     const {rows}=await client.query(`
       SELECT
-        p.*,
+        p.id,
+        p.sku,
+        p.internal_code,
+        p.barcode,
+        p.name,
+        p.brand,
+        p.category,
+        p.subcategory,
+        p.description,
+        p.price,
+        p.promo_price,
+        p.photo,
+        p.online_status,
+        p.featured,
+        p.bestseller,
+        p.launch,
+        p.promotion,
+        p.status,
         v.id AS variant_id,
         v.name AS variant_name,
         COALESCE(v.stock,0) AS stock,
@@ -468,8 +485,8 @@ app.get('/api/online/catalog',async(req,res)=>{
     console.error('ONLINE CATALOG ERROR:',e);
     res.status(503).json({ok:false,error:e.message});
   }finally{
-  await client.end().catch(()=>{});
-}
+    await client.end().catch(()=>{});
+  }
 });
 
 app.get('/health',(_req,res)=>res.json({ok:true,service:'encantada-api'}));

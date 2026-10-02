@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "encantada-catalogo2",
+  "name": "encantada-catalogo",
   "main": "src/worker.js",
   "compatibility_date": "2026-09-22",
   "compatibility_flags": ["nodejs_compat"],
